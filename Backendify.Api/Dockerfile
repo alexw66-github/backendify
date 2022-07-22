@@ -12,12 +12,9 @@ WORKDIR "/src/Backendify.Api"
 RUN dotnet build "Backendify.Api.csproj" -c Release -o /app/build
 
 FROM build AS publish
-RUN dotnet dev-certs https
 RUN dotnet publish "Backendify.Api.csproj" -c Release -o /app/publish
 
 FROM base AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
-COPY --from=publish /root/.dotnet/corefx/cryptography/x509stores/my/* /root/.dotnet/corefx/cryptography/x509stores/my/
-
 ENTRYPOINT ["dotnet", "Backendify.Api.dll"]
