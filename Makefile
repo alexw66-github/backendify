@@ -35,7 +35,7 @@ run: ## Run container on port configured in `config.env`
 up: build run ## Run container on port configured in `config.env` (Alias to run)
 
 stop: ## Stop and remove a running container
-	docker stop $(APP_NAME); docker rm $(APP_NAME)
+	docker stop $(APP_NAME)
 
 release: build-nc publish ## Make a release by building and publishing the `{version}` ans `latest` tagged containers
 

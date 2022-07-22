@@ -1,41 +1,73 @@
+using Microsoft.AspNetCore.Mvc;
+using Asp.Versioning;
+using Asp.Versioning.Conventions;
+using Microsoft.Extensions.Options;
+using Swashbuckle.AspNetCore.SwaggerGen;
+using System.Text.Json.Serialization;
+using Microsoft.Net.Http.Headers;
+using Microsoft.AspNetCore.Builder;
+
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddApiVersioning();
 builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
-  app.UseSwagger();
-  app.UseSwaggerUI();
+    app.UseSwagger();
+    app.UseSwaggerUI();
 }
 
-var summaries = new[]
+app.MapGet("/status", () =>
 {
-    "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-};
-
-app.MapGet("/weatherforecast", () =>
-{
-  var forecast = Enumerable.Range(1, 5).Select(index =>
-      new WeatherForecast
-      (
-          DateTime.Now.AddDays(index),
-          Random.Shared.Next(-20, 55),
-          summaries[Random.Shared.Next(summaries.Length)]
-      ))
-      .ToArray();
-  return forecast;
+    return Results.Ok("OK");
 })
-.WithName("GetWeatherForecast");
+.WithName("GetStatus");
+
+app.MapGet("/company", ([FromQuery(Name = "id")] int id, [FromQuery(Name = "country_iso")] int countryIso) =>
+{
+    return Results.Ok(new CompanyRecord
+    (
+      "a12bc",
+      "FooBar",
+      true,
+      DateTime.UtcNow.AddYears(3)
+    ));
+})
+.WithName("GetCompanyById");
+
+app.MapGet("/companies", (HttpContext context) =>
+{
+    context.Response.Headers.TryAdd(HeaderNames.ContentType, "application/x-company-v1");
+    return Results.Ok(new[] {new CompanySummaryV1(
+    "",
+    DateTime.Today.AddYears(-1).ToShortDateString(),
+    DateTime.Today.AddDays(-30).ToShortDateString()
+  )});
+})
+.WithName("GetCompanies");
 
 app.Run();
 
-internal record WeatherForecast(DateTime Date, int TemperatureC, string? Summary)
+internal record CompanyRecord(string Id, string Name, bool IsActive, DateTime? ActiveUntil)
 {
-  public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
+}
+
+record Something([property: JsonPropertyName("hello")] string world) { }
+
+internal record CompanySummaryV1(
+  [property: JsonPropertyName("cn")] string CompanyName,
+  [property: JsonPropertyName("created_on")] string CreatedOn,
+  [property: JsonPropertyName("closed_on")] string ClosedOn)
+{
+}
+
+internal record CompanySummaryV2(
+  [property: JsonPropertyName("company_name")] string CompanyName,
+  [property: JsonPropertyName("tin")] string TaxId,
+  [property: JsonPropertyName("dissolved_on")] string ClosedOn)
+{
 }
