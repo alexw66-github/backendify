@@ -1,21 +1,22 @@
-﻿using Backendify.Api.Data;
-using v1Models = Backendify.Api.Models.v1;
-using v1Services = Backendify.Api.Services.v1;
-using v2Models = Backendify.Api.Models.v2;
-using v2Services = Backendify.Api.Services.v2;
+﻿using Backendify.Api.Models;
+using Backendify.Api.Repositories;
+using Backendify.Api.Services.External;
+using Microsoft.EntityFrameworkCore;
 
 namespace Backendify.Api.Services
 {
-  public class CompanyService : v1Services.ICompanyService, v2Services.ICompanyService
+  public class CompanyService : ICompanyService
   {
-    private readonly ICompanyRepository repository;
+    private readonly CompanyRepository cache;
+    private readonly IRemoteCompanyService remoteLookup;
 
-    public CompanyService(ICompanyRepository repository)
+    public CompanyService(CompanyRepository cache, IRemoteCompanyService remoteLookup)
     {
-      this.repository = repository;
+      this.cache = cache;
+      this.remoteLookup = remoteLookup;
     }
 
-    async Task<IResult> v1Services.ICompanyService.GetCompanyByCountry(string id, string countryCode)
+    public async Task<IResult> GetCompany(string id, string countryCode)
     {
       if (string.IsNullOrWhiteSpace(id))
       {
@@ -27,50 +28,21 @@ namespace Backendify.Api.Services
         return Results.BadRequest("\"country_iso\" must be two characters.");
       }
 
-      var match = await repository.GetByCountry(id, countryCode);
+      var match = await cache.Companies.SingleOrDefaultAsync(x => x.Id == id && x.CountryCode == countryCode);
 
       if (match is null)
       {
-        return Results.NotFound();
+        match = await remoteLookup.GetCompany(id, countryCode);
+
+        if (match is null)
+        {
+          return Results.NotFound();
+        }
+
+        await cache.Companies.AddAsync(match);
       }
 
-      var result = new v1Models.RegionalCompanyModel(match.Id, match.CompanyName, match.Closed);
-      return Results.Ok(result);
-    }
-
-    async Task<IResult> v1Services.ICompanyService.GetCompanyById(string id)
-    {
-      if (string.IsNullOrWhiteSpace(id))
-      {
-        return Results.BadRequest($"\"{nameof(id)}\" is required.");
-      }
-
-      var match = await repository.GetById(id);
-
-      if (match is null)
-      {
-        return Results.NotFound();
-      }
-
-      var result = new v1Models.CompanyResultModel(match.CompanyName, match.Opened, match.Closed);
-      return Results.Ok(result);
-    }
-
-    async Task<IResult> v2Services.ICompanyService.GetCompanyById(string id)
-    {
-      if (string.IsNullOrWhiteSpace(id))
-      {
-        return Results.BadRequest($"\"{nameof(id)}\" is required.");
-      }
-
-      var match = await repository.GetById(id);
-
-      if (match is null)
-      {
-        return Results.NotFound();
-      }
-
-      var result = new v2Models.CompanyResultModel(match.CompanyName, match.TaxId, match.Closed);
+      var result = new CompanyModel(match.Id, match.CompanyName, match.Closed);
       return Results.Ok(result);
     }
   }
