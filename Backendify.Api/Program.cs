@@ -15,6 +15,7 @@ services.AddSwaggerGen();
 
 services.AddDbContext<CompanyRepository>(opt => opt.UseInMemoryDatabase("cache"));
 services.AddHttpClient();
+services.AddHealthChecks();
 
 services.AddSingleton<ApiUrlMap>(provider =>
 {
@@ -25,8 +26,8 @@ services.AddSingleton<ApiUrlMap>(provider =>
   };
 
   var map = new ApiUrlMap();
-  var keyValues = args.FirstOrDefault(string.Empty)
-    .Split(' ')
+  var keyValues = args.Where(x => x is not null && x.Contains('='))
+    .SelectMany(x=> x.Split(' ', StringSplitOptions.RemoveEmptyEntries| StringSplitOptions.TrimEntries))
     .Select(x => GetUrl(x))
     .ToList();
 
@@ -45,10 +46,7 @@ if (app.Environment.IsDevelopment())
   app.UseSwaggerUI();
 }
 
-app.MapGet(
-  "/status",
-  () =>
-  Results.Ok());
+app.MapHealthChecks("/status");
 
 app.MapGet(
   "/company",
