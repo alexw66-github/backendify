@@ -6,6 +6,8 @@ using Backendify.Api.Services;
 using Backendify.Api.Services.External;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Polly;
+using Polly.Extensions.Http;
 using System.Net;
 using System.Net.Mime;
 
@@ -16,7 +18,16 @@ services.AddEndpointsApiExplorer();
 services.AddSwaggerGen();
 
 services.AddDbContext<CompanyRepository>(opt => opt.UseInMemoryDatabase("cache"));
-services.AddHttpClient();
+
+static IAsyncPolicy<HttpResponseMessage> GetRetryPolicy()
+{
+  return HttpPolicyExtensions
+      .HandleTransientHttpError()
+      .OrResult(msg => msg.StatusCode == System.Net.HttpStatusCode.NotFound)
+      .WaitAndRetryAsync(6, retryAttempt => TimeSpan.FromMilliseconds(100));
+}
+
+services.AddHttpClient("Flakey").AddPolicyHandler(GetRetryPolicy());
 services.AddHealthChecks();
 
 services.AddScoped<ICompanyRepository, CompanyRepository>();

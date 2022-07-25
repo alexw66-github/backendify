@@ -48,7 +48,7 @@ namespace Backendify.Api.Services.External
 
         try
         {
-          using var client = clientFactory.CreateClient();
+          using var client = clientFactory.CreateClient("Flakey");
           using var response = await client.SendAsync(request);
 
           response.EnsureSuccessStatusCode();
