@@ -20,4 +20,6 @@ WORKDIR /app
 COPY --from=publish /app/publish .
 COPY --from=publish /root/.dotnet/corefx/cryptography/x509stores/my/* /root/.dotnet/corefx/cryptography/x509stores/my/
 
+ENV ASPNETCORE_URLS="http://+:9000"
+
 ENTRYPOINT ["dotnet", "Backendify.Api.dll"]

@@ -29,13 +29,15 @@
     },
     "Docker": {
       "commandName": "Docker",
+      "httpPort": 9000,
       "commandLineArgs": "ru=http://localhost:9001 us=http://localhost:9002",
       "launchBrowser": true,
       "launchUrl": "{Scheme}://{ServiceHost}:{ServicePort}/swagger",
-      "publishAllPorts": true,
+      "publishAllPorts": false,
       "useSSL": false,
       "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development"
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "ASPNETCORE_URLS": "http://+:9000"
       }
     },
     "WSL": {
