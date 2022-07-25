@@ -27,6 +27,14 @@ services.AddLogging();
 
 services.AddSingleton<ApiUrlMap>(provider =>
 {
+  var logger = provider.GetRequiredService<ILogger<ApiUrlMap>>();
+  logger.LogDebug("Processing arguments: {Arguments}", string.Join(' ', args ?? Array.Empty<string>()));
+
+  if (args is null)
+  {
+    return new ApiUrlMap();
+  }
+
   static KeyValuePair<string, string> GetUrl(string value)
   {
     var keyValue = value.Split('=');
