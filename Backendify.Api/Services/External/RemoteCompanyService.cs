@@ -20,7 +20,7 @@ namespace Backendify.Api.Services.External
       this.logger = logger;
     }
 
-    public async Task<Company> GetCompany(string id, string countryCode)
+    public async Task<Company?> GetCompany(string id, string countryCode)
     {
       using (logger.BeginScope("Id={id}, CountryCode={countryCode}", id, countryCode))
       {
@@ -36,18 +36,23 @@ namespace Backendify.Api.Services.External
 
         if (!urls.ContainsKey(countryCode))
         {
-          throw new ArgumentOutOfRangeException(nameof(countryCode), "Specifiec country code does not exist.");
+          logger.LogError("A url for the specified country code does not exist");
+          return default;
         }
-
-        logger.LogDebug("Requesting company {Id} from {Url}", id, urls[countryCode]);
+        
         var request = new HttpRequestMessage(HttpMethod.Get, urls[countryCode]);
         request.Headers.Add("Accept", MediaTypeNames.Application.Json);
+
+        logger.LogDebug("Requesting company {Id} from {Url}", id, urls[countryCode]);
+        logger.LogTrace("{@Request}", request);
 
         using var client = clientFactory.CreateClient();
         using var response = await client.SendAsync(request);
 
         response.EnsureSuccessStatusCode();
         response.Content.Headers.TryGetValues(HeaderNames.ContentType, out IEnumerable<string>? contentHeaders);
+
+        logger.LogTrace("{@Response}", response);
 
         if (contentHeaders is not null &&
           contentHeaders.Contains("application/x-company-v1"))

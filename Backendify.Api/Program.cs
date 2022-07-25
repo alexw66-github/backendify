@@ -43,10 +43,16 @@ services.AddSingleton<ApiUrlMap>(provider =>
 
 var app = builder.Build();
 
+app.UseSwagger();
+app.UseSwaggerUI();
+
 if (app.Environment.IsDevelopment())
 {
-  app.UseSwagger();
-  app.UseSwaggerUI();
+  using var scope = app.Services.CreateScope();
+  var cache = scope.ServiceProvider.GetRequiredService<ICompanyRepository>();
+
+  cache.Companies.Add(new Company("123", "gb", "FooBar", "99L99999", DateTime.Today.AddYears(-3), null));
+  await cache.SaveChangesAsync();
 }
 else
 {

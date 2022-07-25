@@ -30,12 +30,12 @@ build-nc: ## Build the container without caching
 	docker build --no-cache -t $(DOCKER_REPO)/$(APP_NAME):$(VERSION) .
 
 run: ## Run container on port configured in `config.env`
-	docker run -d --env-file=./config.env -e ASPNETCORE_ENVIRONMENT="Development" -e ASPNETCORE_URLS="https://+:443;http://+:80" -p=$(SERVICE_PORT_HTTPS):443 -p=$(SERVICE_PORT_HTTP):80 --name="$(APP_NAME)" $(DOCKER_REPO)/$(APP_NAME):$(VERSION)
+	docker run -d --env-file=./config.env -e ASPNETCORE_ENVIRONMENT="${ENVIRONMENT}" -e ASPNETCORE_URLS="https://+:443;http://+:80" -p=$(SERVICE_PORT_HTTPS):443 -p=$(SERVICE_PORT_HTTP):80 --name="$(APP_NAME)" $(DOCKER_REPO)/$(APP_NAME):$(VERSION)
 
 up: build run ## Run container on port configured in `config.env` (Alias to run)
 
 stop: ## Stop and remove a running container
-	docker stop $(APP_NAME)
+	docker stop $(APP_NAME); docker rm $(APP_NAME)
 
 release: build-nc publish ## Make a release by building and publishing the `{version}` ans `latest` tagged containers
 
