@@ -7,43 +7,58 @@ namespace Backendify.Api.Services
 {
   public class CompanyService : ICompanyService
   {
-    private readonly CompanyRepository cache;
+    private readonly ICompanyRepository cache;
     private readonly IRemoteCompanyService remoteLookup;
+    private readonly ILogger<CompanyService> logger;
 
-    public CompanyService(CompanyRepository cache, IRemoteCompanyService remoteLookup)
+    public CompanyService(ICompanyRepository cache, IRemoteCompanyService remoteLookup, ILogger<CompanyService> logger)
     {
       this.cache = cache;
       this.remoteLookup = remoteLookup;
+      this.logger = logger;
     }
 
     public async Task<IResult> GetCompany(string id, string countryCode)
     {
-      if (string.IsNullOrWhiteSpace(id))
+      using (logger.BeginScope("Id={id}, CountryCode={countryCode}", id, countryCode))
       {
-        return Results.BadRequest($"\"{nameof(id)}\" is required.");
-      }
+        if (string.IsNullOrWhiteSpace(id))
+        {
+          return Results.BadRequest($"\"{nameof(id)}\" is required.");
+        }
 
-      if (string.IsNullOrWhiteSpace(countryCode) || countryCode.Length > 2)
-      {
-        return Results.BadRequest("\"country_iso\" must be two characters.");
-      }
+        if (string.IsNullOrWhiteSpace(countryCode) || countryCode.Length > 2)
+        {
+          return Results.BadRequest("\"country_iso\" must be two characters.");
+        }
 
-      var match = await cache.Companies.SingleOrDefaultAsync(x => x.Id == id && x.CountryCode == countryCode);
-
-      if (match is null)
-      {
-        match = await remoteLookup.GetCompany(id, countryCode);
+        var match = await cache.Companies.SingleOrDefaultAsync(x => x.Id == id && x.CountryCode == countryCode);
 
         if (match is null)
         {
-          return Results.NotFound();
+          logger.LogDebug("A cache entry does not exist for specified company");
+          match = await remoteLookup.GetCompany(id, countryCode);
+
+          if (match is null)
+          {
+            logger.LogError("Unable to locate the specified company from downstream services");
+            return Results.NotFound();
+          }
+
+          logger.LogDebug("Caching discovered company");
+          logger.LogTrace("{@Company}", match);
+          await cache.Companies.AddAsync(match);
+          await cache.SaveChangesAsync();
+        }
+        else
+        {
+          logger.LogDebug("Existing cache entry found for the specified company");
         }
 
-        await cache.Companies.AddAsync(match);
+        logger.LogInformation("Returning company {CompanyName} [{Id},{CountryCode}]", match.CompanyName, match.Id, match.CountryCode);
+        var result = new CompanyModel(match.Id, match.CompanyName, match.Closed);
+        return Results.Ok(result);
       }
-
-      var result = new CompanyModel(match.Id, match.CompanyName, match.Closed);
-      return Results.Ok(result);
     }
   }
 }

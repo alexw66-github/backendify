@@ -1,5 +1,4 @@
 ﻿using System.Text.Json.Serialization;
-using System.Xml;
 
 namespace Backendify.Api.ProviderModels.v2
 {

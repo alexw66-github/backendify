@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Backendify.Api.Repositories
 {
-  public class CompanyRepository : DbContext
+  public class CompanyRepository : DbContext, ICompanyRepository
   {
     public CompanyRepository(DbContextOptions<CompanyRepository> options)
         : base(options)

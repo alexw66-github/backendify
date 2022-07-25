@@ -1,4 +1,5 @@
 using Backendify.Api.Entities;
+using Backendify.Api.Middleware;
 using Backendify.Api.Models;
 using Backendify.Api.Repositories;
 using Backendify.Api.Services;
@@ -6,6 +7,7 @@ using Backendify.Api.Services.External;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Net;
+using System.Net.Mime;
 
 var builder = WebApplication.CreateBuilder(args);
 var services = builder.Services;
@@ -17,26 +19,27 @@ services.AddDbContext<CompanyRepository>(opt => opt.UseInMemoryDatabase("cache")
 services.AddHttpClient();
 services.AddHealthChecks();
 
+services.AddScoped<ICompanyRepository, CompanyRepository>();
+services.AddScoped<IRemoteCompanyService, RemoteCompanyService>();
+services.AddScoped<ICompanyService, CompanyService>();
+
+services.AddLogging();
+
 services.AddSingleton<ApiUrlMap>(provider =>
 {
-  (string CountryCode, string Url) GetUrl(string value)
+  static KeyValuePair<string, string> GetUrl(string value)
   {
     var keyValue = value.Split('=');
-    return (keyValue[0], keyValue[1]);
+    return KeyValuePair.Create(keyValue[0], keyValue[1]);
   };
 
-  var map = new ApiUrlMap();
   var keyValues = args.Where(x => x is not null && x.Contains('='))
-    .SelectMany(x=> x.Split(' ', StringSplitOptions.RemoveEmptyEntries| StringSplitOptions.TrimEntries))
+    .SelectMany(x => x.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
     .Select(x => GetUrl(x))
     .ToList();
 
-  keyValues.ForEach(x => map.AddOrUpdate(x.CountryCode, x.Url, (key, oldValue) => x.Url));
-
-  return map;
+  return new ApiUrlMap(keyValues);
 });
-services.AddScoped<IRemoteCompanyService, RemoteCompanyService>();
-services.AddScoped<ICompanyService, CompanyService>();
 
 var app = builder.Build();
 
@@ -45,6 +48,10 @@ if (app.Environment.IsDevelopment())
   app.UseSwagger();
   app.UseSwaggerUI();
 }
+else
+{
+  app.UseMiddleware<AddCacheHeadersMiddleware>();
+}
 
 app.MapHealthChecks("/status");
 
@@ -52,7 +59,8 @@ app.MapGet(
   "/company",
   async ([FromQuery(Name = "id")] string id, [FromQuery(Name = "country_iso")] string countryCode, ICompanyService service) =>
   await service.GetCompany(id, countryCode))
-  .Produces<CompanyModel>()
-  .Produces((int)HttpStatusCode.NotFound);
+  .Produces<CompanyModel>((int)HttpStatusCode.OK, MediaTypeNames.Application.Json)
+  .Produces((int)HttpStatusCode.NotFound)
+  .WithMetadata(new CacheResponseMetadata());
 
 app.Run();
