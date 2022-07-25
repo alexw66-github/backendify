@@ -46,54 +46,62 @@ namespace Backendify.Api.Services.External
         logger.LogDebug("Requesting company {Id} from {Url}", id, urls[countryCode]);
         logger.LogTrace("{@Request}", request);
 
-        using var client = clientFactory.CreateClient();
-        using var response = await client.SendAsync(request);
-
-        response.EnsureSuccessStatusCode();
-        response.Content.Headers.TryGetValues(HeaderNames.ContentType, out IEnumerable<string>? contentHeaders);
-
-        logger.LogTrace("{@Response}", response);
-
-        if (contentHeaders is not null &&
-          contentHeaders.Contains("application/x-company-v1"))
+        try
         {
-          logger.LogDebug("Response is \"application/x-company-v1\"");
-          var model = await response.Content.ReadFromJsonAsync<v1Models.CompanyModel>();
+          using var client = clientFactory.CreateClient();
+          using var response = await client.SendAsync(request);
 
-          if (model is null)
+          response.EnsureSuccessStatusCode();
+          response.Content.Headers.TryGetValues(HeaderNames.ContentType, out IEnumerable<string>? contentHeaders);
+
+          logger.LogTrace("{@Response}", response);
+
+          if (contentHeaders is not null &&
+            contentHeaders.Contains("application/x-company-v1"))
           {
-            throw new InvalidDataException($"Response JSON invalid for identifier \"{id}\" and country code \"{countryCode}\".");
+            logger.LogDebug("Response is \"application/x-company-v1\"");
+            var model = await response.Content.ReadFromJsonAsync<v1Models.CompanyModel>();
+
+            if (model is null)
+            {
+              throw new InvalidDataException($"Response JSON invalid for identifier \"{id}\" and country code \"{countryCode}\".");
+            }
+
+            var entity = new Company(
+              id,
+              countryCode,
+              model.CompanyName,
+              null,
+              XmlConvert.ToDateTime(model.CreatedOn, XmlDateTimeSerializationMode.Utc),
+              model.ClosedOn is not null ? XmlConvert.ToDateTime(model.ClosedOn, XmlDateTimeSerializationMode.Utc) : null);
+
+            return entity;
           }
+          else
+          {
+            logger.LogDebug("Response is \"application/x-company-v2\" or above");
+            var model = await response.Content.ReadFromJsonAsync<v2Models.CompanyModel>();
 
-          var entity = new Company(
-            id,
-            countryCode,
-            model.CompanyName,
-            null,
-            XmlConvert.ToDateTime(model.CreatedOn, XmlDateTimeSerializationMode.Utc),
-            model.ClosedOn is not null ? XmlConvert.ToDateTime(model.ClosedOn, XmlDateTimeSerializationMode.Utc) : null);
+            if (model is null)
+            {
+              throw new InvalidDataException($"Response JSON invalid for identifier \"{id}\" and country code \"{countryCode}\".");
+            }
 
-          return entity;
+            var entity = new Company(
+              id,
+              countryCode,
+              model.CompanyName,
+              model.TaxId,
+              null,
+              model.DissolvedOn is not null ? XmlConvert.ToDateTime(model.DissolvedOn, XmlDateTimeSerializationMode.Utc) : null);
+
+            return entity;
+          }
         }
-        else
+        catch(Exception ex)
         {
-          logger.LogDebug("Response is \"application/x-company-v2\" or above");
-          var model = await response.Content.ReadFromJsonAsync<v2Models.CompanyModel>();
-
-          if (model is null)
-          {
-            throw new InvalidDataException($"Response JSON invalid for identifier \"{id}\" and country code \"{countryCode}\".");
-          }
-
-          var entity = new Company(
-            id,
-            countryCode,
-            model.CompanyName,
-            model.TaxId,
-            null,
-            model.DissolvedOn is not null ? XmlConvert.ToDateTime(model.DissolvedOn, XmlDateTimeSerializationMode.Utc) : null);
-
-          return entity;
+          logger.LogError(ex, "Unable to retrieve company from remote endpoint, due to: {Error}", ex.ToString());
+          return default;
         }
       }
     }
