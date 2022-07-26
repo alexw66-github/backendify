@@ -38,7 +38,10 @@ namespace Backendify.Api.Services
         if (match is null)
         {
           logger.LogDebug("A cache entry does not exist for specified company");
-          match = await remoteLookup.GetCompany(id, countryCode);
+
+          match = 
+            await remoteLookup.GetCompany(id, countryCode) ?? 
+            await cache.Companies.SingleOrDefaultAsync(x => x.Id == id && x.CountryCode == countryCode);
 
           if (match is null)
           {
@@ -63,7 +66,7 @@ namespace Backendify.Api.Services
           }
           catch (DBConcurrencyException ex)
           {
-            logger.LogWarning(ex, "A matching company has already been added or modified: {Error}", ex);
+            logger.LogWarning(ex, "A matching company has already been added or modified: {Error}", ex.Message);
           }
         }
         else
