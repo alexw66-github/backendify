@@ -62,8 +62,6 @@ services.AddSingleton<ApiUrlMap>(provider =>
 
 var app = builder.Build();
 
-_ = app.Services.GetService<ApiUrlMap>();
-
 app.UseSwagger();
 app.UseSwaggerUI();
 
