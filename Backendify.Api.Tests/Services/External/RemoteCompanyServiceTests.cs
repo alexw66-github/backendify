@@ -43,7 +43,7 @@ namespace Backendify.Api.Services.External.Tests
 
     private static ApiUrlMap GetUrls(params string[] countryCodes)
     {
-      var urls = countryCodes.Select(x => KeyValuePair.Create(x, $"http://foo.bar/{x}/"));
+      var urls = countryCodes.Select(x => KeyValuePair.Create(x, new Uri($"http://foo.bar/{x}/")));
       return new ApiUrlMap(urls);
     }
 

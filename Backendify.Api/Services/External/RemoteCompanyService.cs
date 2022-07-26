@@ -40,10 +40,10 @@ namespace Backendify.Api.Services.External
           return default;
         }
         
-        var request = new HttpRequestMessage(HttpMethod.Get, urls[countryCode]);
+        var request = new HttpRequestMessage(HttpMethod.Get, new Uri(urls[countryCode], $"/{id}"));
         request.Headers.Add("Accept", MediaTypeNames.Application.Json);
 
-        logger.LogDebug("Requesting company {Id} from {Url}", id, urls[countryCode]);
+        logger.LogInformation("Requesting company {Id} with code {CountryCode} from {Url}", id, countryCode,urls[countryCode]);
         logger.LogTrace("{@Request}", request);
 
         try

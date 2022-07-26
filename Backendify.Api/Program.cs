@@ -24,7 +24,7 @@ static IAsyncPolicy<HttpResponseMessage> GetRetryPolicy()
   return HttpPolicyExtensions
       .HandleTransientHttpError()
       .OrResult(msg => msg.StatusCode == System.Net.HttpStatusCode.NotFound)
-      .WaitAndRetryAsync(6, retryAttempt => TimeSpan.FromMilliseconds(100));
+      .WaitAndRetryAsync(3, retryAttempt => TimeSpan.FromMilliseconds(250));
 }
 
 services.AddHttpClient("Flakey").AddPolicyHandler(GetRetryPolicy());
@@ -46,10 +46,10 @@ services.AddSingleton<ApiUrlMap>(provider =>
     return new ApiUrlMap();
   }
 
-  static KeyValuePair<string, string> GetUrl(string value)
+  static KeyValuePair<string, Uri> GetUrl(string value)
   {
     var keyValue = value.Split('=');
-    return KeyValuePair.Create(keyValue[0], keyValue[1]);
+    return KeyValuePair.Create(keyValue[0], new Uri(keyValue[1]));
   };
 
   var keyValues = args.Where(x => x is not null && x.Contains('='))
