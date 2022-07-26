@@ -23,8 +23,8 @@ static IAsyncPolicy<HttpResponseMessage> GetRetryPolicy()
 {
   return HttpPolicyExtensions
       .HandleTransientHttpError()
-      .OrResult(msg => msg.StatusCode == System.Net.HttpStatusCode.NotFound)
-      .WaitAndRetryAsync(5, retryAttempt => TimeSpan.FromMilliseconds(retryAttempt * 250));
+      .OrResult(msg => msg.StatusCode != HttpStatusCode.NotFound && msg.StatusCode != HttpStatusCode.OK)
+      .WaitAndRetryAsync(4, retryAttempt => TimeSpan.FromMilliseconds(retryAttempt * 250));
 }
 
 services.AddHttpClient("Flakey").AddPolicyHandler(GetRetryPolicy());

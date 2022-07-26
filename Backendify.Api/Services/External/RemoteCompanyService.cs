@@ -39,7 +39,7 @@ namespace Backendify.Api.Services.External
           logger.LogError("A url for the specified country code does not exist");
           return default;
         }
-        
+
         var request = new HttpRequestMessage(HttpMethod.Get, new Uri(urls[countryCode], $"/companies/{id}"));
         request.Headers.Add("Accept", MediaTypeNames.Application.Json);
 
@@ -59,7 +59,7 @@ namespace Backendify.Api.Services.External
           if (contentHeaders is not null &&
             contentHeaders.Contains("application/x-company-v1"))
           {
-            logger.LogDebug("Response is \"application/x-company-v1\"");
+            logger.LogInformation("Response is \"application/x-company-v1\"");
             var model = await response.Content.ReadFromJsonAsync<v1Models.CompanyModel>();
 
             if (model is null)
@@ -79,7 +79,7 @@ namespace Backendify.Api.Services.External
           }
           else
           {
-            logger.LogDebug("Response is \"application/x-company-v2\" or above");
+            logger.LogInformation("Response is \"application/x-company-v2\" or above");
             var model = await response.Content.ReadFromJsonAsync<v2Models.CompanyModel>();
 
             if (model is null)
@@ -98,7 +98,7 @@ namespace Backendify.Api.Services.External
             return entity;
           }
         }
-        catch(Exception ex)
+        catch (Exception ex)
         {
           logger.LogError(ex, "Unable to retrieve company from remote endpoint, due to: {Error}", ex.Message);
           return default;
