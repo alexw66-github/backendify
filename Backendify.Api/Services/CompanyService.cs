@@ -37,19 +37,19 @@ namespace Backendify.Api.Services
 
         if (match is null)
         {
-          logger.LogDebug("A cache entry does not exist for specified company");
+          logger.LogInformation("A cache entry does not exist for specified company [{Id},{CountryCode}]", id, countryCode);
 
-          match = 
-            await remoteLookup.GetCompany(id, countryCode) ?? 
+          match =
+            await remoteLookup.GetCompany(id, countryCode) ??
             await cache.Companies.SingleOrDefaultAsync(x => x.Id == id && x.CountryCode == countryCode);
 
           if (match is null)
           {
-            logger.LogError("Unable to locate the specified company from downstream services");
+            logger.LogError("Unable to locate the specified company [{Id},{CountryCode}] from downstream services", id, countryCode);
             return Results.NotFound();
           }
 
-          logger.LogDebug("Caching discovered company");
+          logger.LogInformation("Caching returned company {CompanyName} [{Id},{CountryCode}]", match.CompanyName, match.Id, match.CountryCode);
           logger.LogTrace("{@Company}", match);
 
           try
@@ -71,7 +71,7 @@ namespace Backendify.Api.Services
         }
         else
         {
-          logger.LogDebug("Existing cache entry found for the specified company");
+          logger.LogInformation("Existing cache entry found for the specified company {CompanyName} [{Id},{CountryCode}]", match.CompanyName, match.Id, match.CountryCode);
         }
 
         logger.LogInformation("Returning company {CompanyName} [{Id},{CountryCode}]", match.CompanyName, match.Id, match.CountryCode);
