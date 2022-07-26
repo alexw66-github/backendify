@@ -2,6 +2,7 @@
 using Backendify.Api.Repositories;
 using Backendify.Api.Services.External;
 using Microsoft.EntityFrameworkCore;
+using System.Data;
 
 namespace Backendify.Api.Services
 {
@@ -47,8 +48,23 @@ namespace Backendify.Api.Services
 
           logger.LogDebug("Caching discovered company");
           logger.LogTrace("{@Company}", match);
-          await cache.Companies.AddAsync(match);
-          await cache.SaveChangesAsync();
+
+          try
+          {
+            if (cache.Companies.Any(x => x.Id == match.Id && x.CountryCode == match.CountryCode))
+            {
+              logger.LogWarning("A matching company has already been added or modified");
+            }
+            else
+            {
+              await cache.Companies.AddAsync(match);
+              await cache.SaveChangesAsync();
+            }
+          }
+          catch (DBConcurrencyException ex)
+          {
+            logger.LogWarning(ex, "A matching company has already been added or modified: {Error}", ex);
+          }
         }
         else
         {

@@ -9,6 +9,15 @@ namespace Backendify.Api.Repositories
         : base(options)
     { }
 
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+      modelBuilder.Entity<Company>()
+          .HasKey(new[] { nameof(Company.Id), nameof(Company.CountryCode) });
+
+      modelBuilder.Entity<Company>().Property(x=>x.Id)
+        .ValueGeneratedNever();
+    }
+
     public DbSet<Company> Companies { get; set; }
   }
 }
