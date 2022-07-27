@@ -100,7 +100,7 @@ namespace Backendify.Api.Services.External
         }
         catch (Exception ex)
         {
-          logger.LogError(ex, "Unable to retrieve company from remote endpoint, due to: {Error}", ex.Message);
+          logger.LogError(ex, "Unable to retrieve company [{Id},{CountryCode}] from remote endpoint, due to: {Error}", id, countryCode, ex.Message);
           return default;
         }
       }

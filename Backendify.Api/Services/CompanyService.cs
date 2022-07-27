@@ -1,7 +1,6 @@
 ﻿using Backendify.Api.Models;
 using Backendify.Api.Repositories;
 using Backendify.Api.Services.External;
-using Microsoft.EntityFrameworkCore;
 using System.Data;
 using System.Diagnostics;
 
