@@ -38,7 +38,7 @@ namespace Backendify.Api.Services
 
         if (match is null)
         {
-          logger.LogInformation("A cache entry does not exist for specified company [{Id},{CountryCode}]", id, countryCode);
+          logger.LogDebug("A cache entry does not exist for specified company [{Id},{CountryCode}]", id, countryCode);
 
           match =
             await remoteLookup.GetCompany(id, countryCode) ??
@@ -49,9 +49,11 @@ namespace Backendify.Api.Services
             logger.LogError("Unable to locate the specified company [{Id},{CountryCode}] from downstream services", id, countryCode);
             match = new Entities.Company(id, countryCode, string.Empty, null, null, null, IsNullPlaceholder: true);
           }
-
-          logger.LogInformation("Caching returned company \"{CompanyName}\" [{Id},{CountryCode}]", match.CompanyName, match.Id, match.CountryCode);
-          logger.LogTrace("{@Company}", match);
+          else
+          {
+            logger.LogInformation("Caching returned company \"{CompanyName}\" [{Id},{CountryCode}]", match.CompanyName, match.Id, match.CountryCode);
+            logger.LogTrace("{@Company}", match);
+          }
 
           try
           {
@@ -69,10 +71,6 @@ namespace Backendify.Api.Services
           {
             logger.LogWarning(ex, "A matching company has already been added or modified: {Error}", ex.Message);
           }
-        }
-        else
-        {
-          logger.LogInformation("Existing cache entry found for the specified company \"{CompanyName}\" [{Id},{CountryCode}]", match.CompanyName, match.Id, match.CountryCode);
         }
 
         if (match.IsNullPlaceholder)
