@@ -2,7 +2,7 @@
 {
   public class CacheResponseMetadata
   {
-    public TimeSpan CacheTime { get; set; } = TimeSpan.FromMinutes(5);
+    public TimeSpan CacheTime { get; set; } = TimeSpan.FromDays(1);
   }
 
   public class AddCacheHeadersMiddleware

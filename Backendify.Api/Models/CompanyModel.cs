@@ -3,7 +3,7 @@ using System.Xml;
 
 namespace Backendify.Api.Models
 {
-  public record CompanyModel(string Id, string Name, [property: JsonIgnore] DateTime? Closed)
+  public record struct CompanyModel(string Id, string Name, [property: JsonIgnore] DateTime? Closed)
   {
     [JsonPropertyName("active")]
     public bool IsActive => this.Closed is null || this.Closed >= DateTime.UtcNow;

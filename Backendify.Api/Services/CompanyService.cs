@@ -46,8 +46,8 @@ namespace Backendify.Api.Services
 
           if (match is null)
           {
-            logger.LogError("Unable to locate the specified company [{Id},{CountryCode}] from downstream services after {Elapsed}", id, countryCode, timer.Elapsed);
-            return Results.NotFound();
+            logger.LogError("Unable to locate the specified company [{Id},{CountryCode}] from downstream services", id, countryCode);
+            match = new Entities.Company(id, countryCode, string.Empty, null, null, null, IsNullPlaceholder: true);
           }
 
           logger.LogInformation("Caching returned company \"{CompanyName}\" [{Id},{CountryCode}]", match.CompanyName, match.Id, match.CountryCode);
@@ -75,9 +75,17 @@ namespace Backendify.Api.Services
           logger.LogInformation("Existing cache entry found for the specified company \"{CompanyName}\" [{Id},{CountryCode}]", match.CompanyName, match.Id, match.CountryCode);
         }
 
-        logger.LogInformation("Returning company \"{CompanyName}\" [{Id},{CountryCode}] after {Elapsed}", match.CompanyName, match.Id, match.CountryCode, timer.Elapsed);
-        var result = new CompanyModel(match.Id, match.CompanyName, match.Closed);
-        return Results.Ok(result);
+        if (match.IsNullPlaceholder)
+        {
+          logger.LogInformation("Returning not found for company [{Id},{CountryCode}] after {Elapsed}", match.Id, match.CountryCode, timer.Elapsed);
+          return Results.NotFound();
+        }
+        else
+        {
+          logger.LogInformation("Returning company \"{CompanyName}\" [{Id},{CountryCode}] after {Elapsed}", match.CompanyName, match.Id, match.CountryCode, timer.Elapsed);
+          var result = new CompanyModel(match.Id, match.CompanyName, match.Closed);
+          return Results.Ok(result);
+        }
       }
     }
   }
