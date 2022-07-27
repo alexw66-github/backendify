@@ -5,11 +5,12 @@ using Backendify.Api.Repositories;
 using Backendify.Api.Services;
 using Backendify.Api.Services.External;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.ResponseCaching;
 using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Net.Http.Headers;
 using Polly;
 using Polly.Extensions.Http;
-using System.IO.Compression;
 using System.Net;
 using System.Net.Mime;
 
@@ -30,6 +31,8 @@ services.AddResponseCompression(options =>
   options.Providers.Add<BrotliCompressionProvider>();
   options.Providers.Add<GzipCompressionProvider>();
 });
+
+services.AddResponseCaching();
 
 static IAsyncPolicy<HttpResponseMessage> GetRetryPolicy()
 {
@@ -83,12 +86,37 @@ if (app.Environment.IsDevelopment())
 {
   using var scope = app.Services.CreateScope();
   var cache = scope.ServiceProvider.GetRequiredService<ICompanyRepository>();
+  var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
 
   cache.Companies.Add(new Company("123", "gb", "FooBar", "99L99999", DateTime.Today.AddYears(-3), null));
   await cache.SaveChangesAsync();
+  logger.LogWarning("Added fake cache entry for debugging");
 }
 else
 {
+  app.UseResponseCaching();
+
+  app.Use(async (context, next) =>
+  {
+    context.Response.GetTypedHeaders().CacheControl =
+        new CacheControlHeaderValue()
+        {
+          Public = true,
+          MaxAge = TimeSpan.FromDays(1)
+        };
+
+    var cachingFeature = context.Features.Get<IResponseCachingFeature>();
+
+    if (cachingFeature is not null)
+    {
+      cachingFeature.VaryByQueryKeys = new[] { "*" };
+    }
+
+    context.Response.Headers[HeaderNames.Vary] = new string[] { HeaderNames.AcceptEncoding };
+
+    await next();
+  });
+
   app.UseMiddleware<AddCacheHeadersMiddleware>();
 }
 
