@@ -10,6 +10,11 @@ namespace Backendify.Api.Tests.Helpers
       where T : class
     {
       var dbSet = values.BuildMock().BuildMockDbSet();
+
+      dbSet
+        .Setup(x => x.FindAsync(It.IsAny<object[]>()))
+        .ReturnsAsync(values.FirstOrDefault());
+
       return dbSet;
     }
   }

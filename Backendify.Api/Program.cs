@@ -5,9 +5,11 @@ using Backendify.Api.Repositories;
 using Backendify.Api.Services;
 using Backendify.Api.Services.External;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.EntityFrameworkCore;
 using Polly;
 using Polly.Extensions.Http;
+using System.IO.Compression;
 using System.Net;
 using System.Net.Mime;
 
@@ -17,14 +19,24 @@ var services = builder.Services;
 services.AddEndpointsApiExplorer();
 services.AddSwaggerGen();
 
-services.AddDbContext<CompanyRepository>(opt => opt.UseInMemoryDatabase("cache"));
+services.AddDbContext<CompanyRepository>(options =>
+{
+  options.UseInMemoryDatabase("cache");
+  options.UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking);
+});
+
+services.AddResponseCompression(options =>
+{
+  options.Providers.Add<BrotliCompressionProvider>();
+  options.Providers.Add<GzipCompressionProvider>();
+});
 
 static IAsyncPolicy<HttpResponseMessage> GetRetryPolicy()
 {
   return HttpPolicyExtensions
       .HandleTransientHttpError()
       .OrResult(msg => msg.StatusCode != HttpStatusCode.NotFound && msg.StatusCode != HttpStatusCode.OK)
-      .WaitAndRetryAsync(4, retryAttempt => TimeSpan.FromMilliseconds(retryAttempt * 250));
+      .WaitAndRetryAsync(3, retryAttempt => TimeSpan.FromMilliseconds(retryAttempt * 100));
 }
 
 services.AddHttpClient("Flakey").AddPolicyHandler(GetRetryPolicy());
@@ -64,6 +76,8 @@ var app = builder.Build();
 
 app.UseSwagger();
 app.UseSwaggerUI();
+
+app.UseResponseCompression();
 
 if (app.Environment.IsDevelopment())
 {

@@ -5,15 +5,24 @@ EXPOSE 443
 
 FROM mcr.microsoft.com/dotnet/sdk:6.0 AS build
 WORKDIR /src
-COPY ["Backendify.Api/Backendify.Api.csproj", "Backendify.Api/"]
-RUN dotnet restore "Backendify.Api/Backendify.Api.csproj"
-COPY . .
-WORKDIR "/src/Backendify.Api"
-RUN dotnet build "Backendify.Api.csproj" -c Release -o /app/build
 
-FROM build AS publish
+# Copy the solution file
+COPY ./*.sln ./
+
+# Copy projects at the root
+COPY ./*/*.csproj ./
+RUN for file in $(ls *.csproj); do mkdir -p ${file%.*}/ && mv $file ${file%.*}/; done
+
+RUN dotnet restore
+COPY . .
+RUN dotnet build -o /app/build
+
+FROM build AS test
+RUN dotnet test -l:"console;verbosity=normal"
+
+FROM test AS publish
 RUN dotnet dev-certs https
-RUN dotnet publish "Backendify.Api.csproj" -c Release -o /app/publish
+RUN dotnet publish -c Release -o /app/publish
 
 FROM base AS final
 WORKDIR /app

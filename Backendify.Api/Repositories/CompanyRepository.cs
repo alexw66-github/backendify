@@ -14,7 +14,7 @@ namespace Backendify.Api.Repositories
       modelBuilder.Entity<Company>()
           .HasKey(new[] { nameof(Company.Id), nameof(Company.CountryCode) });
 
-      modelBuilder.Entity<Company>().Property(x=>x.Id)
+      modelBuilder.Entity<Company>().Property(x => x.Id)
         .ValueGeneratedNever();
     }
 

@@ -3,6 +3,7 @@ using Backendify.Api.Repositories;
 using Backendify.Api.Services.External;
 using Microsoft.EntityFrameworkCore;
 using System.Data;
+using System.Diagnostics;
 
 namespace Backendify.Api.Services
 {
@@ -33,7 +34,8 @@ namespace Backendify.Api.Services
           return Results.BadRequest("\"country_iso\" must be two characters.");
         }
 
-        var match = await cache.Companies.SingleOrDefaultAsync(x => x.Id == id && x.CountryCode == countryCode);
+        var timer = Stopwatch.StartNew();
+        var match = await cache.Companies.FindAsync(id, countryCode);
 
         if (match is null)
         {
@@ -41,15 +43,15 @@ namespace Backendify.Api.Services
 
           match =
             await remoteLookup.GetCompany(id, countryCode) ??
-            await cache.Companies.SingleOrDefaultAsync(x => x.Id == id && x.CountryCode == countryCode);
+            await cache.Companies.FindAsync(id, countryCode);
 
           if (match is null)
           {
-            logger.LogError("Unable to locate the specified company [{Id},{CountryCode}] from downstream services", id, countryCode);
+            logger.LogError("Unable to locate the specified company [{Id},{CountryCode}] from downstream services after {Elapsed}", id, countryCode, timer.Elapsed);
             return Results.NotFound();
           }
 
-          logger.LogInformation("Caching returned company {CompanyName} [{Id},{CountryCode}]", match.CompanyName, match.Id, match.CountryCode);
+          logger.LogInformation("Caching returned company \"{CompanyName}\" [{Id},{CountryCode}]", match.CompanyName, match.Id, match.CountryCode);
           logger.LogTrace("{@Company}", match);
 
           try
@@ -71,10 +73,10 @@ namespace Backendify.Api.Services
         }
         else
         {
-          logger.LogInformation("Existing cache entry found for the specified company {CompanyName} [{Id},{CountryCode}]", match.CompanyName, match.Id, match.CountryCode);
+          logger.LogInformation("Existing cache entry found for the specified company \"{CompanyName}\" [{Id},{CountryCode}]", match.CompanyName, match.Id, match.CountryCode);
         }
 
-        logger.LogInformation("Returning company {CompanyName} [{Id},{CountryCode}]", match.CompanyName, match.Id, match.CountryCode);
+        logger.LogInformation("Returning company \"{CompanyName}\" [{Id},{CountryCode}] after {Elapsed}", match.CompanyName, match.Id, match.CountryCode, timer.Elapsed);
         var result = new CompanyModel(match.Id, match.CompanyName, match.Closed);
         return Results.Ok(result);
       }
