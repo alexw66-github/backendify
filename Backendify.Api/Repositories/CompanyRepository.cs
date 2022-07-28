@@ -9,6 +9,12 @@ namespace Backendify.Api.Repositories
         : base(options)
     { }
 
+    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+    {
+      optionsBuilder
+          .UseModel(CompanyRepositoryModel.Instance);
+    }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
       modelBuilder.Entity<Company>()
