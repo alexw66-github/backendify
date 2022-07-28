@@ -3,8 +3,17 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Backendify.Api.Repositories
 {
+  /// <summary>
+  /// Database of companies.
+  /// </summary>
+  /// <seealso cref="DbContext" />
+  /// <seealso cref="ICompanyRepository" />
   public class CompanyRepository : DbContext, ICompanyRepository
   {
+    /// <summary>
+    /// Initializes a new instance of the <see cref="CompanyRepository"/> class.
+    /// </summary>
+    /// <param name="options">The database context options.</param>
     public CompanyRepository(DbContextOptions<CompanyRepository> options)
         : base(options)
     { }

@@ -7,12 +7,22 @@ using v2Models = Backendify.Api.ProviderModels.v2;
 
 namespace Backendify.Api.Services.External
 {
+  /// <summary>
+  /// Represents a remote company lookup service.
+  /// </summary>
+  /// <seealso cref="IRemoteCompanyService" />
   public class RemoteCompanyService : IRemoteCompanyService
   {
     private readonly IHttpClientFactory clientFactory;
     private readonly ApiUrlMap urls;
     private readonly ILogger<RemoteCompanyService> logger;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="RemoteCompanyService"/> class.
+    /// </summary>
+    /// <param name="clientFactory">The HTTP client factory.</param>
+    /// <param name="urls">The available remote urls.</param>
+    /// <param name="logger">The logger to use.</param>
     public RemoteCompanyService(IHttpClientFactory clientFactory, ApiUrlMap urls, ILogger<RemoteCompanyService> logger)
     {
       this.clientFactory = clientFactory;
@@ -20,6 +30,12 @@ namespace Backendify.Api.Services.External
       this.logger = logger;
     }
 
+    /// <summary>
+    /// Gets the company with the specified identifier and country code.
+    /// </summary>
+    /// <param name="id">The company identifier.</param>
+    /// <param name="countryCode">The country code.</param>
+    /// <returns>Returns the matching company, or <c>null</c>.</returns>
     public async Task<Company?> GetCompany(string id, string countryCode)
     {
       using (logger.BeginScope("Id={id}, CountryCode={countryCode}", id, countryCode))
@@ -51,51 +67,26 @@ namespace Backendify.Api.Services.External
           using var client = clientFactory.CreateClient("Flakey");
           using var response = await client.SendAsync(request);
 
-          response.EnsureSuccessStatusCode();
-          response.Content.Headers.TryGetValues(HeaderNames.ContentType, out IEnumerable<string>? contentHeaders);
-
-          logger.LogTrace("{@Response}", response);
-
-          if (contentHeaders is not null &&
-            contentHeaders.Contains("application/x-company-v1"))
+          if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
           {
-            logger.LogInformation("Response is \"application/x-company-v1\"");
-            var model = await response.Content.ReadFromJsonAsync<v1Models.CompanyModel>();
+            logger.LogInformation("Company [{Id},{CountryCode}] does not exist on endpoint {Url}", id, countryCode, request.RequestUri);
+            return default;
+          }
 
-            if (model is null)
-            {
-              throw new InvalidDataException($"Response JSON invalid for identifier \"{id}\" and country code \"{countryCode}\".");
-            }
+          response.EnsureSuccessStatusCode();
 
-            var entity = new Company(
-              id,
-              countryCode,
-              model.CompanyName,
-              null,
-              XmlConvert.ToDateTime(model.CreatedOn, XmlDateTimeSerializationMode.Utc),
-              model.ClosedOn is not null ? XmlConvert.ToDateTime(model.ClosedOn, XmlDateTimeSerializationMode.Utc) : null);
+          if (logger.IsEnabled(LogLevel.Trace))
+          {
+            logger.LogTrace("{@Response}", response.Content.ReadAsStringAsync());
+          }
 
-            return entity;
+          if (IsApiVersionOne(response))
+          {
+            return await this.DecodeCompanyVersion1(id, countryCode, response);
           }
           else
           {
-            logger.LogInformation("Response is \"application/x-company-v2\" or above");
-            var model = await response.Content.ReadFromJsonAsync<v2Models.CompanyModel>();
-
-            if (model is null)
-            {
-              throw new InvalidDataException($"Response JSON invalid for identifier \"{id}\" and country code \"{countryCode}\".");
-            }
-
-            var entity = new Company(
-              id,
-              countryCode,
-              model.CompanyName,
-              model.TaxId,
-              null,
-              model.DissolvedOn is not null ? XmlConvert.ToDateTime(model.DissolvedOn, XmlDateTimeSerializationMode.Utc) : null);
-
-            return entity;
+            return await this.DecodeCompanyVersion2(id, countryCode, response);
           }
         }
         catch (Exception ex)
@@ -104,6 +95,64 @@ namespace Backendify.Api.Services.External
           return default;
         }
       }
+    }
+
+    private static bool IsApiVersionOne(HttpResponseMessage response)
+    {
+      response.Headers.TryGetValues(HeaderNames.ContentType, out IEnumerable<string>? responseHeaders);
+      response.Content.Headers.TryGetValues(HeaderNames.ContentType, out IEnumerable<string>? contentHeaders);
+
+      return (responseHeaders ?? Array.Empty<string>())
+        .Concat(contentHeaders ?? Array.Empty<string>())
+        .Contains(CompanyContentHeaders.Version1);
+    }
+
+    private async Task<Company> DecodeCompanyVersion1(string id, string countryCode, HttpResponseMessage response)
+    {
+      logger.LogInformation("Response is \"application/x-company-v1\"");
+      var model = await response.Content.ReadFromJsonAsync<v1Models.CompanyModel>();
+
+      if (model is null)
+      {
+        throw new InvalidDataException($"Response JSON invalid for identifier \"{id}\" and country code \"{countryCode}\".");
+      }
+
+      var entity = new Company(
+        id,
+        countryCode,
+        model.CompanyName,
+        null,
+        XmlConvert.ToDateTime(model.CreatedOn, XmlDateTimeSerializationMode.Utc),
+        !string.IsNullOrWhiteSpace(model.ClosedOn) ? XmlConvert.ToDateTime(model.ClosedOn, XmlDateTimeSerializationMode.Utc) : null);
+
+      return entity;
+    }
+
+    private async Task<Company> DecodeCompanyVersion2(string id, string countryCode, HttpResponseMessage response)
+    {
+      logger.LogInformation("Response is \"application/x-company-v2\" or above");
+      var model = await response.Content.ReadFromJsonAsync<v2Models.CompanyModel>();
+
+      if (model is null)
+      {
+        throw new InvalidDataException($"Response JSON invalid for identifier \"{id}\" and country code \"{countryCode}\".");
+      }
+
+      var entity = new Company(
+        id,
+        countryCode,
+        model.CompanyName,
+        model.TaxId,
+        null,
+        !string.IsNullOrWhiteSpace(model.DissolvedOn) ? XmlConvert.ToDateTime(model.DissolvedOn, XmlDateTimeSerializationMode.Utc) : null);
+
+      return entity;
+    }
+
+    private static class CompanyContentHeaders
+    {
+      public const string Version1 = "application/x-company-v1";
+      public const string Version2 = "application/x-company-v2";
     }
   }
 }
