@@ -42,7 +42,6 @@ services.AddEFSecondLevelCache(options =>
 
 services.AddResponseCompression(options =>
 {
-  options.Providers.Add<BrotliCompressionProvider>();
   options.Providers.Add<GzipCompressionProvider>();
 });
 
