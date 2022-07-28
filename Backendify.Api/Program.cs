@@ -4,7 +4,6 @@ using Backendify.Api.Models;
 using Backendify.Api.Repositories;
 using Backendify.Api.Services;
 using Backendify.Api.Services.External;
-using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.HttpLogging;
 using Microsoft.AspNetCore.Mvc;
 using System.Net;
@@ -35,12 +34,12 @@ services.AddSingletonUrlsFromArguments(args);
 
 var app = builder.Build();
 
-app.UseHttpLogging();
 app.UseResponseCaching();
 app.ConfigureResponseCachingForQueryParameters(TimeSpan.FromDays(1));
 
 if (app.Environment.IsDevelopment())
 {
+  app.UseHttpLogging();
   app.ConfigureCachedEntriesForDevelopmentPurposes(
     new Company("123", "gb", "FooBar1", "99L99999", DateTime.Today.AddYears(-3), null),
     new Company("456", "fr", "FooBar2", "99L99999", DateTime.Today.AddYears(-3), null));
@@ -49,7 +48,7 @@ if (app.Environment.IsDevelopment())
   app.UseSwaggerUI();
 }
 
-app.MapHealthChecks("/status", new HealthCheckOptions() { AllowCachingResponses = true });
+app.MapHealthChecks("/status");
 
 app.MapGet(
   "/company",
