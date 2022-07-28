@@ -44,7 +44,7 @@ namespace Backendify.Api.Services
             await remoteLookup.GetCompany(id, countryCode) ??
             await cache.Companies.FindAsync(id, countryCode);
 
-          if (match is null)
+          if (match is null || match.IsNullPlaceholder)
           {
             logger.LogError("Unable to locate the specified company [{Id},{CountryCode}] from downstream services", id, countryCode);
             match = new Entities.Company(id, countryCode, string.Empty, null, null, null, IsNullPlaceholder: true);
@@ -57,9 +57,9 @@ namespace Backendify.Api.Services
 
           try
           {
-            if (cache.Companies.Any(x => x.Id == match.Id && x.CountryCode == match.CountryCode))
+            if (await cache.Companies.FindAsync(id, countryCode) is not null)
             {
-              logger.LogWarning("A matching company has already been added or modified");
+              logger.LogWarning("A matching company [{Id},{CountryCode}] has already been added or modified",match.Id, match.CountryCode);
             }
             else
             {
@@ -67,9 +67,9 @@ namespace Backendify.Api.Services
               await cache.SaveChangesAsync();
             }
           }
-          catch (DBConcurrencyException ex)
+          catch (ArgumentException ex)
           {
-            logger.LogWarning(ex, "A matching company has already been added or modified: {Error}", ex.Message);
+            logger.LogWarning(ex, "A matching company [{Id},{CountryCode}] has already been added or modified: {Error}", match.Id, match.CountryCode, ex.Message);
           }
         }
 
