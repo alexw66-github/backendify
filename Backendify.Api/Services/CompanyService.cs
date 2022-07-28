@@ -57,7 +57,10 @@ namespace Backendify.Api.Services
         if (company is null)
         {
           logger.LogDebug("A cache entry does not exist for specified company [{Id},{CountryCode}]", id, countryCode);
-          company = await GetCompanyFromRemoteService(id, countryCode);
+          company = 
+            await TryGetCompanyFromRemoteService(id, countryCode) ?? 
+            await cache.Companies.FindAsync(id, countryCode);
+
           await this.CacheResult(id, countryCode, company);
         }
 
@@ -75,21 +78,14 @@ namespace Backendify.Api.Services
       }
     }
 
-    private async Task<Company> GetCompanyFromRemoteService(string id, string countryCode)
+    private async Task<Company> TryGetCompanyFromRemoteService(string id, string countryCode)
     {
-      var match =
-        await remoteLookup.GetCompany(id, countryCode) ??
-        await cache.Companies.FindAsync(id, countryCode);
+      var match = await remoteLookup.GetCompany(id, countryCode);
 
       if (match is null || match.IsNullPlaceholder)
       {
-        logger.LogError("Unable to locate the specified company [{Id},{CountryCode}] from downstream services", id, countryCode);
+        logger.LogWarning("Unable to locate the specified company [{Id},{CountryCode}] from downstream services", id, countryCode);
         match = new Entities.Company(id, countryCode, string.Empty, null, null, null, IsNullPlaceholder: true);
-      }
-      else
-      {
-        logger.LogInformation("Caching returned company \"{CompanyName}\" [{Id},{CountryCode}]", match.CompanyName, match.Id, match.CountryCode);
-        logger.LogTrace("{@Company}", match);
       }
 
       return match;
@@ -110,6 +106,17 @@ namespace Backendify.Api.Services
         }
         else
         {
+          if (match.IsNullPlaceholder)
+          {
+            logger.LogInformation("Caching null company [{Id},{CountryCode}]", match.Id, match.CountryCode);
+          }
+          else
+          {
+            logger.LogInformation("Caching company \"{CompanyName}\" [{Id},{CountryCode}]", match.CompanyName, match.Id, match.CountryCode);
+          }
+
+          logger.LogTrace("{@Company}", match);
+
           cache.Companies.Add(match);
           await cache.SaveChangesAsync();
         }
