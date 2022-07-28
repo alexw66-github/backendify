@@ -1,7 +1,8 @@
 {
   "configProperties": {
-    "Server.GC.HeapHardLimit": 131072000, // 125MB
+    "Server.GC.HeapHardLimit": 134217728, // 128MB
     "System.GC.Server": true,
-    "System.Net.Http.SocketsHttpHandler.Http2Support": true
+    "System.Net.Http.SocketsHttpHandler.Http2Support": true,
+    "System.Threading.ThreadPool.MinThreads": 12
   }
 }
