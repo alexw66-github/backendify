@@ -1,5 +1,5 @@
 ﻿using Backendify.Api.Entities;
-using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace Backendify.Api.Repositories
 {
@@ -8,31 +8,53 @@ namespace Backendify.Api.Repositories
   /// </summary>
   /// <seealso cref="DbContext" />
   /// <seealso cref="ICompanyRepository" />
-  public class CompanyRepository : DbContext, ICompanyRepository
+  public class CompanyRepository : ICompanyRepository
   {
+    private readonly IMemoryCache innerCache;
+    private readonly ILogger<CompanyRepository> logger;
+
     /// <summary>
-    /// Initializes a new instance of the <see cref="CompanyRepository"/> class.
+    /// Initializes a new instance of the <see cref="CompanyRepository" /> class.
     /// </summary>
-    /// <param name="options">The database context options.</param>
-    public CompanyRepository(DbContextOptions<CompanyRepository> options)
-        : base(options)
-    { }
-
-    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+    /// <param name="innerCache">The inner cache.</param>
+    /// <param name="logger">The logger to use.</param>
+    public CompanyRepository(IMemoryCache innerCache, ILogger<CompanyRepository> logger)
     {
-      optionsBuilder
-          .UseModel(CompanyRepositoryModel.Instance);
+      this.innerCache = innerCache;
+      this.logger = logger;
     }
 
-    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    public Company? TryGetCompany(string id, string countryCode)
     {
-      modelBuilder.Entity<Company>()
-          .HasKey(new[] { nameof(Company.Id), nameof(Company.CountryCode) });
-
-      modelBuilder.Entity<Company>().Property(x => x.Id)
-        .ValueGeneratedNever();
+      if (this.innerCache.TryGetValue($"{id}:{countryCode}", out Company value))
+      {
+        this.logger.LogDebug("Found a cache entry for company [{Id},{CountryCode}]", id, countryCode);
+        return value;
+      }
+      else
+      {
+        this.logger.LogDebug("A cache entry does not exist for specified company [{Id},{CountryCode}]", id, countryCode);
+        return null;
+      }
     }
 
-    public DbSet<Company> Companies { get; set; }
+    public void TrySaveCompany(Company company)
+    {
+      MemoryCacheEntryOptions options = new()
+      {
+        SlidingExpiration = TimeSpan.FromDays(1),
+      };
+
+      this.innerCache.Set($"{company.Id}:{company.CountryCode}", company, options);
+
+      if (company.IsNullPlaceholder)
+      {
+        logger.LogDebug("Caching null company [{Id},{CountryCode}]", company.Id, company.CountryCode);
+      }
+      else
+      {
+        logger.LogDebug("Caching company \"{CompanyName}\" [{Id},{CountryCode}]", company.CompanyName, company.Id, company.CountryCode);
+      }
+    }
   }
 }

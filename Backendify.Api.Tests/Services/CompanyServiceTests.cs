@@ -1,7 +1,6 @@
 ﻿using Backendify.Api.Entities;
 using Backendify.Api.Repositories;
 using Backendify.Api.Services.External;
-using Backendify.Api.Tests.Helpers;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 
@@ -54,12 +53,16 @@ namespace Backendify.Api.Services.Tests
 
     private static Mock<ICompanyRepository> GetCache(params Company[] values)
     {
-      var table = DbHelpers.GetMockDbSet(values);
+      var innerValues = values.ToList();
       var context = new Mock<ICompanyRepository>();
 
       context
-        .Setup(x=> x.Companies)
-        .Returns(table.Object);
+        .Setup(x => x.TryGetCompany(It.IsAny<string>(), It.IsAny<string>()))
+        .Returns<string, string>((id, countryCode) => innerValues.FirstOrDefault(x => x.Id == id && x.CountryCode == countryCode));
+
+      context
+        .Setup(x => x.TrySaveCompany(It.IsAny<Company>()))
+        .Callback<Company>(value => innerValues.Add(value));
 
       return context;
     }

@@ -52,16 +52,15 @@ namespace Backendify.Api.Services
         }
 
         var timer = Stopwatch.StartNew();
-        var company = await cache.Companies.FindAsync(id, countryCode);
+        var company = this.cache.TryGetCompany(id, countryCode);
 
         if (company is null)
         {
-          logger.LogDebug("A cache entry does not exist for specified company [{Id},{CountryCode}]", id, countryCode);
           company = 
-            await TryGetCompanyFromRemoteService(id, countryCode) ?? 
-            await cache.Companies.FindAsync(id, countryCode);
+            await this.TryGetCompanyFromRemoteService(id, countryCode) ??
+            this.cache.TryGetCompany(id, countryCode);
 
-          await this.CacheResult(id, countryCode, company);
+          this.CacheResult(company);
         }
 
         if (company is null || company.IsNullPlaceholder)
@@ -80,51 +79,36 @@ namespace Backendify.Api.Services
 
     private async Task<Company> TryGetCompanyFromRemoteService(string id, string countryCode)
     {
-      var match = await remoteLookup.GetCompany(id, countryCode);
+      var company = await remoteLookup.GetCompany(id, countryCode);
 
-      if (match is null || match.IsNullPlaceholder)
+      if (company is null || company.IsNullPlaceholder)
       {
         logger.LogWarning("Unable to locate the specified company [{Id},{CountryCode}] from downstream services", id, countryCode);
-        match = new Entities.Company(id, countryCode, string.Empty, null, null, null, IsNullPlaceholder: true);
+        company = new Entities.Company(id, countryCode, string.Empty, null, null, null, IsNullPlaceholder: true);
       }
 
-      return match;
+      return company;
     }
 
-    private async Task CacheResult(string id, string countryCode, Company? match)
+    private void CacheResult(Company? company)
     {
-      if (match is null)
+      if (company is null)
       {
         return;
       }
 
-      try
+      if (company.IsNullPlaceholder)
       {
-        if (await cache.Companies.FindAsync(id, countryCode) is not null)
-        {
-          logger.LogWarning("A matching company [{Id},{CountryCode}] has already been added or modified", match.Id, match.CountryCode);
-        }
-        else
-        {
-          if (match.IsNullPlaceholder)
-          {
-            logger.LogInformation("Caching null company [{Id},{CountryCode}]", match.Id, match.CountryCode);
-          }
-          else
-          {
-            logger.LogInformation("Caching company \"{CompanyName}\" [{Id},{CountryCode}]", match.CompanyName, match.Id, match.CountryCode);
-          }
-
-          logger.LogTrace("{@Company}", match);
-
-          cache.Companies.Add(match);
-          await cache.SaveChangesAsync();
-        }
+        logger.LogInformation("Caching null company [{Id},{CountryCode}]", company.Id, company.CountryCode);
       }
-      catch (Exception ex)
+      else
       {
-        logger.LogWarning(ex, "A matching company [{Id},{CountryCode}] has already been added or modified: {Error}", match.Id, match.CountryCode, ex.Message);
+        logger.LogInformation("Caching company \"{CompanyName}\" [{Id},{CountryCode}]", company.CompanyName, company.Id, company.CountryCode);
       }
+
+      logger.LogTrace("{@Company}", company);
+
+      this.cache.TrySaveCompany(company);
     }
   }
 }

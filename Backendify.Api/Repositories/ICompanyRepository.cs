@@ -1,5 +1,4 @@
 ﻿using Backendify.Api.Entities;
-using Microsoft.EntityFrameworkCore;
 
 namespace Backendify.Api.Repositories
 {
@@ -9,18 +8,17 @@ namespace Backendify.Api.Repositories
   public interface ICompanyRepository
   {
     /// <summary>
-    /// Table of company records.
+    /// Tries to get the company with the specified identifiers.
     /// </summary>
-    DbSet<Company> Companies { get; set; }
+    /// <param name="id">The company identifier.</param>
+    /// <param name="countryCode">The country code.</param>
+    /// <returns>Returns the cached company, or <c>null</c>.</returns>
+    Company? TryGetCompany(string id, string countryCode);
 
     /// <summary>
-    /// Saves all changes made in this context to the database. 
+    /// Tries to save the specified company.
     /// </summary>
-    /// <param name="cancellationToken">A <see cref="CancellationToken" /> to observe while waiting for the task to complete.</param>
-    /// <returns>
-    ///   A task that represents the asynchronous save operation. The task result contains the
-    ///   number of state entries written to the database.
-    /// </returns>
-    Task<int> SaveChangesAsync(CancellationToken cancellationToken = default(CancellationToken));
+    /// <param name="company">The company to save.</param>
+    void TrySaveCompany(Company company);
   }
 }

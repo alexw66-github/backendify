@@ -16,8 +16,8 @@ var services = builder.Services;
 services.AddHealthChecks();
 services.AddEndpointsApiExplorer();
 services.AddSwaggerGen();
-services.AddEntityFrameworkWithInMemoryCaching();
 services.AddResponseCaching();
+services.AddMemoryCache();
 services.AddLogging();
 services.AddHttpLogging(options =>
 {
@@ -41,7 +41,7 @@ app.ConfigureResponseCachingForQueryParameters(TimeSpan.FromDays(1));
 
 if (app.Environment.IsDevelopment())
 {
-  await app.ConfigureCachedEntriesForDevelopmentPurposes(
+  app.ConfigureCachedEntriesForDevelopmentPurposes(
     new Company("123", "gb", "FooBar1", "99L99999", DateTime.Today.AddYears(-3), null),
     new Company("456", "fr", "FooBar2", "99L99999", DateTime.Today.AddYears(-3), null));
   

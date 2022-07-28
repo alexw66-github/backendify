@@ -1,8 +1,6 @@
 ﻿using Backendify.Api.Entities;
 using Backendify.Api.Repositories;
-using EFCoreSecondLevelCacheInterceptor;
 using Microsoft.AspNetCore.ResponseCaching;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Net.Http.Headers;
 using Polly;
 using Polly.Extensions.Http;
@@ -15,23 +13,6 @@ namespace Backendify.Api.Internal
   /// </summary>
   public static class StartupExtensions
   {
-    public static IServiceCollection AddEntityFrameworkWithInMemoryCaching(this IServiceCollection services)
-    {
-      services.AddDbContextPool<CompanyRepository>(options =>
-      {
-        options.UseInMemoryDatabase("cache");
-        options.UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking);
-      });
-
-      services.AddEFSecondLevelCache(options =>
-      {
-        options.UseMemoryCacheProvider();
-        options.DisableLogging(true);
-      });
-
-      return services;
-    }
-
     public static IServiceCollection AddNamedHttpClientWithRetryPolicy(this IServiceCollection services, string name, int intervalMs = 250)
     {
       static IAsyncPolicy<HttpResponseMessage> RetryTwice()
@@ -78,7 +59,7 @@ namespace Backendify.Api.Internal
       return app;
     }
 
-    public static async Task<WebApplication> ConfigureCachedEntriesForDevelopmentPurposes(this WebApplication app, params Company[] entries)
+    public static WebApplication ConfigureCachedEntriesForDevelopmentPurposes(this WebApplication app, params Company[] entries)
     {
       using var scope = app.Services.CreateScope();
       var cache = scope.ServiceProvider.GetRequiredService<ICompanyRepository>();
@@ -86,11 +67,10 @@ namespace Backendify.Api.Internal
 
       foreach (var entry in entries)
       {
-        cache.Companies.Add(entry);
+        cache.TrySaveCompany(entry);
         logger.LogWarning("Added fake company cache entry [{Id},{CountryCode}] for debugging", entry.Id, entry.CountryCode);
       }
 
-      await cache.SaveChangesAsync();
       return app;
     }
   }
