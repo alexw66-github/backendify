@@ -4,6 +4,8 @@ using Backendify.Api.Models;
 using Backendify.Api.Repositories;
 using Backendify.Api.Services;
 using Backendify.Api.Services.External;
+using EFCoreSecondLevelCacheInterceptor;
+using Microsoft.AspNetCore.HttpLogging;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.ResponseCaching;
 using Microsoft.AspNetCore.ResponseCompression;
@@ -20,10 +22,22 @@ var services = builder.Services;
 services.AddEndpointsApiExplorer();
 services.AddSwaggerGen();
 
-services.AddDbContext<CompanyRepository>(options =>
+services.AddDbContextPool<CompanyRepository>(options =>
 {
   options.UseInMemoryDatabase("cache");
   options.UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking);
+});
+
+services.AddPooledDbContextFactory<CompanyRepository>(options =>
+{
+  options.UseInMemoryDatabase("cache");
+});
+
+services.AddEFSecondLevelCache(options =>
+{
+  options
+    .UseMemoryCacheProvider()
+    .DisableLogging(true);
 });
 
 services.AddResponseCompression(options =>
@@ -34,22 +48,29 @@ services.AddResponseCompression(options =>
 
 services.AddResponseCaching();
 
+services.AddLogging();
+services.AddHttpLogging(options =>
+{
+  options.LoggingFields =
+    HttpLoggingFields.RequestPropertiesAndHeaders |
+    HttpLoggingFields.ResponsePropertiesAndHeaders;
+});
+
 static IAsyncPolicy<HttpResponseMessage> GetRetryPolicy()
 {
   return HttpPolicyExtensions
       .HandleTransientHttpError()
       .OrResult(msg => msg.StatusCode != HttpStatusCode.NotFound && msg.StatusCode != HttpStatusCode.OK)
-      .WaitAndRetryAsync(3, retryAttempt => TimeSpan.FromMilliseconds(retryAttempt * 100));
+      .WaitAndRetryAsync(2, retryAttempt => TimeSpan.FromMilliseconds(retryAttempt * 250));
 }
 
 services.AddHttpClient("Flakey").AddPolicyHandler(GetRetryPolicy());
-services.AddHealthChecks();
 
 services.AddScoped<ICompanyRepository, CompanyRepository>();
 services.AddScoped<IRemoteCompanyService, RemoteCompanyService>();
 services.AddScoped<ICompanyService, CompanyService>();
 
-services.AddLogging();
+services.AddHealthChecks();
 
 services.AddSingleton<ApiUrlMap>(provider =>
 {
@@ -77,10 +98,33 @@ services.AddSingleton<ApiUrlMap>(provider =>
 
 var app = builder.Build();
 
-app.UseSwagger();
-app.UseSwaggerUI();
+app.UseHttpLogging();
+app.UseResponseCaching();
+
+app.Use(async (context, next) =>
+{
+  context.Response.GetTypedHeaders().CacheControl =
+      new CacheControlHeaderValue()
+      {
+        Public = true,
+        MaxAge = TimeSpan.FromDays(1)
+      };
+
+  var cachingFeature = context.Features.Get<IResponseCachingFeature>();
+
+  if (cachingFeature is not null)
+  {
+    cachingFeature.VaryByQueryKeys = new[] { "*" };
+  }
+
+  context.Response.Headers[HeaderNames.Vary] = new string[] { HeaderNames.AcceptEncoding };
+
+  await next();
+});
 
 app.UseResponseCompression();
+app.UseSwagger();
+app.UseSwaggerUI();
 
 if (app.Environment.IsDevelopment())
 {
@@ -92,33 +136,6 @@ if (app.Environment.IsDevelopment())
   await cache.SaveChangesAsync();
   logger.LogWarning("Added fake cache entry for debugging");
 }
-else
-{
-  app.UseResponseCaching();
-
-  app.Use(async (context, next) =>
-  {
-    context.Response.GetTypedHeaders().CacheControl =
-        new CacheControlHeaderValue()
-        {
-          Public = true,
-          MaxAge = TimeSpan.FromDays(1)
-        };
-
-    var cachingFeature = context.Features.Get<IResponseCachingFeature>();
-
-    if (cachingFeature is not null)
-    {
-      cachingFeature.VaryByQueryKeys = new[] { "*" };
-    }
-
-    context.Response.Headers[HeaderNames.Vary] = new string[] { HeaderNames.AcceptEncoding };
-
-    await next();
-  });
-
-  app.UseMiddleware<AddCacheHeadersMiddleware>();
-}
 
 app.MapHealthChecks("/status");
 
@@ -127,7 +144,6 @@ app.MapGet(
   async ([FromQuery(Name = "id")] string id, [FromQuery(Name = "country_iso")] string countryCode, ICompanyService service) =>
   await service.GetCompany(id, countryCode))
   .Produces<CompanyModel>((int)HttpStatusCode.OK, MediaTypeNames.Application.Json)
-  .Produces((int)HttpStatusCode.NotFound)
-  .WithMetadata(new CacheResponseMetadata());
+  .Produces((int)HttpStatusCode.NotFound);
 
 app.Run();
