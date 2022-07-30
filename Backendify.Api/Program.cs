@@ -1,5 +1,6 @@
 using Backendify.Api.Entities;
 using Backendify.Api.Internal;
+using Backendify.Api.Middleware;
 using Backendify.Api.Models;
 using Backendify.Api.Repositories;
 using Backendify.Api.Services;
@@ -8,6 +9,7 @@ using Microsoft.AspNetCore.HttpLogging;
 using Microsoft.AspNetCore.Mvc;
 using System.Net;
 using System.Net.Mime;
+using WebEssentials.AspNetCore.OutputCaching;
 
 var builder = WebApplication.CreateBuilder(args);
 var services = builder.Services;
@@ -16,6 +18,13 @@ services.AddHealthChecks();
 services.AddEndpointsApiExplorer();
 services.AddSwaggerGen();
 services.AddResponseCaching();
+services.AddOutputCaching(options =>
+{
+  options.Profiles["default"] = new OutputCacheProfile
+  {
+    Duration = 86400
+  };
+});
 services.AddMemoryCache();
 services.AddLogging();
 services.AddHttpLogging(options =>
@@ -35,6 +44,7 @@ services.AddSingletonUrlsFromArguments(args);
 var app = builder.Build();
 
 app.UseResponseCaching();
+app.UseOutputCaching();
 app.ConfigureResponseCachingForQueryParameters(TimeSpan.FromDays(1));
 
 if (app.Environment.IsDevelopment())
@@ -55,6 +65,7 @@ app.MapGet(
   async ([FromQuery(Name = "id")] string id, [FromQuery(Name = "country_iso")] string countryCode, ICompanyService service) =>
   await service.GetCompany(id, countryCode))
   .Produces<CompanyModel>((int)HttpStatusCode.OK, MediaTypeNames.Application.Json)
-  .Produces((int)HttpStatusCode.NotFound);
+  .Produces((int)HttpStatusCode.NotFound)
+  .WithMetadata(new OutputCacheMetadata());
 
 app.Run();
