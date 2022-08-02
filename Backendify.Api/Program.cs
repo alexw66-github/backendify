@@ -56,7 +56,7 @@ if (app.Environment.IsDevelopment())
   app.UseSwaggerUI();
 }
 
-app.MapGet("/", () => Results.RedirectToRoute("/status"));
+app.MapGet("/", () => Results.Redirect("/status"));
 
 app.MapHealthChecks("/status");
 

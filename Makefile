@@ -30,7 +30,7 @@ build-nc: ## Build the container without caching
 	docker build --progress=plain --no-cache -t $(DOCKER_REPO)/$(APP_NAME):$(VERSION) .
 
 run: stop ## Run container on port configured in `config.env`
-	docker run -d --env-file=./config.env -e ASPNETCORE_ENVIRONMENT="${ENVIRONMENT}" -e ASPNETCORE_URLS="${ASPNETCORE_URLS}" -p=$(NGINX_PORT_HTTP):${NGINX_PORT_HTTP} -p=$(SERVICE_PORT_HTTP):${SERVICE_PORT_HTTP} --name="$(APP_NAME)" $(DOCKER_REPO)/$(APP_NAME):$(VERSION)
+	docker run -d --env-file=./config.env -e ASPNETCORE_ENVIRONMENT="${ENVIRONMENT}" -e ASPNETCORE_URLS="${ASPNETCORE_URLS}" -p=$(NGINX_PORT_HTTP):${NGINX_PORT_HTTP} --name="$(APP_NAME)" $(DOCKER_REPO)/$(APP_NAME):$(VERSION)
 
 up: build run ## Run container on port configured in `config.env` (Alias to run)
 
