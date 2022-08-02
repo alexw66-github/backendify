@@ -24,18 +24,18 @@ help: ## This help.
 # DOCKER TASKS
 # Build the container
 build: ## Build the container
-	docker build -t $(DOCKER_REPO)/$(APP_NAME):$(VERSION) .
+	docker build --progress=plain -t $(DOCKER_REPO)/$(APP_NAME):$(VERSION) .
 
 build-nc: ## Build the container without caching
-	docker build --no-cache -t $(DOCKER_REPO)/$(APP_NAME):$(VERSION) .
+	docker build --progress=plain --no-cache -t $(DOCKER_REPO)/$(APP_NAME):$(VERSION) .
 
-run: ## Run container on port configured in `config.env`
-	docker run -d --env-file=./config.env -e ASPNETCORE_ENVIRONMENT="${ENVIRONMENT}" -e ASPNETCORE_URLS="https://+:443;http://+:80" -p=$(SERVICE_PORT_HTTPS):443 -p=$(SERVICE_PORT_HTTP):80 --name="$(APP_NAME)" $(DOCKER_REPO)/$(APP_NAME):$(VERSION)
+run: stop ## Run container on port configured in `config.env`
+	docker run -d --env-file=./config.env -e ASPNETCORE_ENVIRONMENT="${ENVIRONMENT}" -e ASPNETCORE_URLS="${ASPNETCORE_URLS}" -p=$(NGINX_PORT_HTTP):${NGINX_PORT_HTTP} -p=$(SERVICE_PORT_HTTP):${SERVICE_PORT_HTTP} --name="$(APP_NAME)" $(DOCKER_REPO)/$(APP_NAME):$(VERSION)
 
 up: build run ## Run container on port configured in `config.env` (Alias to run)
 
 stop: ## Stop and remove a running container
-	docker stop $(APP_NAME); docker rm $(APP_NAME)
+	docker stop $(APP_NAME) || true; docker rm $(APP_NAME) || true
 
 release: build-nc publish ## Make a release by building and publishing the `{version}` ans `latest` tagged containers
 

@@ -5,6 +5,7 @@ using Backendify.Api.Repositories;
 using Backendify.Api.Services;
 using Backendify.Api.Services.External;
 using Microsoft.AspNetCore.HttpLogging;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Mvc;
 using System.Net;
 using System.Net.Mime;
@@ -25,6 +26,12 @@ services.AddHttpLogging(options =>
     HttpLoggingFields.ResponsePropertiesAndHeaders;
 });
 
+services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders =
+        ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+});
+
 services.AddNamedHttpClientWithRetryPolicy("Flakey");
 
 services.AddScoped<ICompanyRepository, CompanyRepository>();
@@ -34,6 +41,7 @@ services.AddSingletonUrlsFromArguments(args);
 
 var app = builder.Build();
 
+app.UseForwardedHeaders();
 app.UseResponseCaching();
 app.ConfigureResponseCachingForQueryParameters(TimeSpan.FromDays(1));
 
@@ -47,6 +55,8 @@ if (app.Environment.IsDevelopment())
   app.UseSwagger();
   app.UseSwaggerUI();
 }
+
+app.MapGet("/", () => Results.RedirectToRoute("/status"));
 
 app.MapHealthChecks("/status");
 
