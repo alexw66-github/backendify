@@ -17,6 +17,7 @@ services.AddHealthChecks();
 services.AddEndpointsApiExplorer();
 services.AddSwaggerGen();
 services.AddResponseCaching();
+services.AddResponseCompression();
 services.AddMemoryCache();
 services.AddLogging();
 services.AddHttpLogging(options =>
@@ -43,6 +44,7 @@ var app = builder.Build();
 
 app.UseForwardedHeaders();
 app.UseResponseCaching();
+app.UseResponseCompression();
 app.ConfigureResponseCachingForQueryParameters(TimeSpan.FromDays(1));
 
 if (app.Environment.IsDevelopment())
