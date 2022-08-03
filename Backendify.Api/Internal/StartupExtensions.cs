@@ -26,7 +26,7 @@ namespace Backendify.Api.Internal
       }
 
       services
-        .AddHttpClient(name, options => options.Timeout = TimeSpan.FromSeconds(3))
+        .AddHttpClient(name, options => options.Timeout = TimeSpan.FromSeconds(10))
         .AddPolicyHandler(RetryTwice());
         
       return services;
