@@ -22,11 +22,11 @@ namespace Backendify.Api.Internal
         return HttpPolicyExtensions
             .HandleTransientHttpError()
             .OrResult(msg => msg.StatusCode != HttpStatusCode.NotFound && msg.StatusCode != HttpStatusCode.OK)
-            .WaitAndRetryAsync(2, retryAttempt => TimeSpan.FromMilliseconds(retryAttempt * 100));
+            .WaitAndRetryAsync(3, retryAttempt => TimeSpan.FromMilliseconds(retryAttempt * 150));
       }
 
       services
-        .AddHttpClient(name, options => options.Timeout = TimeSpan.FromSeconds(1))
+        .AddHttpClient(name, options => options.Timeout = TimeSpan.FromSeconds(3))
         .AddPolicyHandler(RetryTwice());
         
       return services;
