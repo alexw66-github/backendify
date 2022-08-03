@@ -1,5 +1,7 @@
 ﻿using Backendify.Api.Entities;
 using Backendify.Api.Repositories;
+using Microsoft.AspNetCore.HttpLogging;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.ResponseCaching;
 using Microsoft.Net.Http.Headers;
 using Polly;
@@ -20,7 +22,7 @@ namespace Backendify.Api.Internal
         return HttpPolicyExtensions
             .HandleTransientHttpError()
             .OrResult(msg => msg.StatusCode != HttpStatusCode.NotFound && msg.StatusCode != HttpStatusCode.OK)
-            .WaitAndRetryAsync(2, retryAttempt => TimeSpan.FromMilliseconds(retryAttempt * 250));
+            .WaitAndRetryAsync(2, retryAttempt => TimeSpan.FromMilliseconds(retryAttempt * 100));
       }
 
       services.AddHttpClient(name).AddPolicyHandler(RetryTwice());
@@ -31,6 +33,25 @@ namespace Backendify.Api.Internal
     {
       return services.AddSingleton<ApiUrlMap>(provider => 
         ArgumentParser.Parse(args, provider.GetRequiredService<ILogger<Program>>()));
+    }
+
+    public static IServiceCollection AddHttpHeaderLogging(this IServiceCollection services)
+    {
+      return services.AddHttpLogging(options =>
+      {
+        options.LoggingFields =
+          HttpLoggingFields.RequestPropertiesAndHeaders |
+          HttpLoggingFields.ResponsePropertiesAndHeaders;
+      });
+    }
+
+    public static IServiceCollection AddHttpForwarding(this IServiceCollection services)
+    {
+      return services.Configure<ForwardedHeadersOptions>(options =>
+      {
+          options.ForwardedHeaders =
+              ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+      });
     }
 
     public static WebApplication ConfigureResponseCachingForQueryParameters(this WebApplication app, TimeSpan cacheInterval)
@@ -57,6 +78,15 @@ namespace Backendify.Api.Internal
       });
 
       return app;
+    }
+
+    public static WebApplication ConfigureCachedEntriesForDevelopmentPurposes(this WebApplication app, params string[] names)
+    {
+      var entities = names
+        .Select((x,i)=> new Company(x, "gb", $"FooBar{i}", "99L99999", DateTime.Today.AddYears(-1 * i), null))
+        .ToArray();
+
+      return app.ConfigureCachedEntriesForDevelopmentPurposes(entities);
     }
 
     public static WebApplication ConfigureCachedEntriesForDevelopmentPurposes(this WebApplication app, params Company[] entries)

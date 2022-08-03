@@ -20,19 +20,8 @@ services.AddResponseCaching();
 services.AddResponseCompression();
 services.AddMemoryCache();
 services.AddLogging();
-services.AddHttpLogging(options =>
-{
-  options.LoggingFields =
-    HttpLoggingFields.RequestPropertiesAndHeaders |
-    HttpLoggingFields.ResponsePropertiesAndHeaders;
-});
-
-services.Configure<ForwardedHeadersOptions>(options =>
-{
-    options.ForwardedHeaders =
-        ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
-});
-
+services.AddHttpHeaderLogging();
+services.AddHttpForwarding();
 services.AddNamedHttpClientWithRetryPolicy("Flakey");
 
 services.AddScoped<ICompanyRepository, CompanyRepository>();
@@ -50,9 +39,7 @@ app.ConfigureResponseCachingForQueryParameters(TimeSpan.FromDays(1));
 if (app.Environment.IsDevelopment())
 {
   app.UseHttpLogging();
-  app.ConfigureCachedEntriesForDevelopmentPurposes(
-    new Company("123", "gb", "FooBar1", "99L99999", DateTime.Today.AddYears(-3), null),
-    new Company("456", "fr", "FooBar2", "99L99999", DateTime.Today.AddYears(-3), null));
+  app.ConfigureCachedEntriesForDevelopmentPurposes("123","456");
   
   app.UseSwagger();
   app.UseSwaggerUI();
